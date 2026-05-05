@@ -270,32 +270,29 @@ namespace Enrollment.Controllers
             ViewData["ClaimStageID"] = SID;
             Session["ClaimStageID"] = SID;
 
-            // ClaimAI Staging Server — fire webhook when claim is at Stage 5 (Doctor Queue)
+            // ClaimAI Staging Server — fire webhook for every claim opened from dashboard
             // Fire-and-forget: does not block page load, does not affect doctor if staging server is down
-            if (Convert.ToInt32(SID) == 5)
+            Task.Run(async () =>
             {
-                Task.Run(async () =>
+                try
                 {
-                    try
+                    string stagingUrl = System.Configuration.ConfigurationManager
+                                              .AppSettings["StagingServerUrl"] ?? "";
+                    if (!string.IsNullOrWhiteSpace(stagingUrl))
                     {
-                        string stagingUrl = System.Configuration.ConfigurationManager
-                                                  .AppSettings["StagingServerUrl"] ?? "";
-                        if (!string.IsNullOrWhiteSpace(stagingUrl))
+                        using (var http = new System.Net.Http.HttpClient())
                         {
-                            using (var http = new System.Net.Http.HttpClient())
-                            {
-                                http.Timeout = TimeSpan.FromSeconds(5);
-                                var payload = Newtonsoft.Json.JsonConvert.SerializeObject(
-                                    new { claimId = ClaimID.ToString(), slNo = SlNo.ToString() });
-                                var body = new System.Net.Http.StringContent(
-                                    payload, System.Text.Encoding.UTF8, "application/json");
-                                await http.PostAsync(stagingUrl + "/webhook/claim-landed", body);
-                            }
+                            http.Timeout = TimeSpan.FromSeconds(5);
+                            var payload = Newtonsoft.Json.JsonConvert.SerializeObject(
+                                new { claimId = ClaimID.ToString(), slNo = SlNo.ToString() });
+                            var body = new System.Net.Http.StringContent(
+                                payload, System.Text.Encoding.UTF8, "application/json");
+                            await http.PostAsync(stagingUrl + "/webhook/claim-landed", body);
                         }
                     }
-                    catch { /* staging server down — ignore, fallback handles it */ }
-                });
-            }
+                }
+                catch { /* staging server down — ignore, fallback handles it */ }
+            });
 
             ViewData["QMS"] = QMS;
             ViewData["QMSadmin"] = QMSadmin;
