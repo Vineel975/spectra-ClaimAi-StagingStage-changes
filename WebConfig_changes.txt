@@ -1,0 +1,11 @@
+=== Web.config Changes ===
+
+In the Enrollment project Web.config, inside the <appSettings> section, add these two keys:
+
+  <!-- ClaimAI Staging Server -->
+  <add key="StagingServerUrl" value="http://localhost:3001" />
+  <add key="StagingApiKey"    value="claimai-staging-key-2025" />
+
+Notes:
+- StagingApiKey must match the STAGING_API_KEY value in staging-server/config.js
+- When deploying to FHPL server, update StagingServerUrl to the actual server address
