@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -9653,13 +9653,64 @@ namespace Enrollment.Controllers
                 }
 
                 // ── Fetch tariff PDF ──────────────────────────────────────────────
+                // Reuse GetTariffDocument logic — call it as an internal ActionResult
+                // and extract the base64 from its JSON response
                 try
                 {
-                    var tariffResult = PickBestTariffFile(cId);
-                    if (tariffResult != null && tariffResult.Item2 != null && tariffResult.Item2.Length > 0)
+                    string connStr2 = System.Configuration.ConfigurationManager
+                        .ConnectionStrings["McarePlusEntities"].ConnectionString;
+                    if (connStr2.StartsWith("metadata=", StringComparison.OrdinalIgnoreCase))
                     {
-                        tariffBase64   = Convert.ToBase64String(tariffResult.Item2);
-                        tariffFileName = tariffResult.Item1;
+                        var m2 = System.Text.RegularExpressions.Regex.Match(
+                            connStr2, "provider connection string=\"([^\"]+)\"",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (m2.Success) connStr2 = m2.Groups[1].Value.Replace("&quot;", """);
+                    }
+
+                    int insurerId2 = 0; string insurerCode2 = "";
+                    if (long.TryParse(cId, out long cIdLong2))
+                        GetClaimInsurerInfo(cIdLong2, connStr2, out insurerId2, out insurerCode2);
+
+                    bool isPsu2 = PsuInsurerIds.Contains(insurerId2);
+
+                    string env2 = (System.Configuration.ConfigurationManager
+                                        .AppSettings["Enviroment"] ?? "dev").ToLower().Trim();
+                    bool isProd2 = env2 == "prod" || env2 == "preprod" || env2 == "live";
+
+                    if (!isProd2)
+                    {
+                        // Local/QA: load from tariff.zip
+                        string localBase2 = Server.MapPath("~/ClaimAIDocs/");
+                        string zipPath2   = System.IO.Path.Combine(localBase2, cId, "tariff.zip");
+                        if (System.IO.File.Exists(zipPath2))
+                        {
+                            var candidates2 = new System.Collections.Generic.List<System.Tuple<string, DateTime, byte[]>>();
+                            using (var zip2 = System.IO.Compression.ZipFile.OpenRead(zipPath2))
+                            {
+                                foreach (var entry2 in zip2.Entries)
+                                {
+                                    if (!entry2.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) continue;
+                                    using (var s2 = entry2.Open())
+                                    using (var ms2 = new System.IO.MemoryStream())
+                                    {
+                                        s2.CopyTo(ms2);
+                                        candidates2.Add(System.Tuple.Create(entry2.Name, entry2.LastWriteTime.UtcDateTime, ms2.ToArray()));
+                                    }
+                                }
+                            }
+                            var best2 = PickBestTariffFile(candidates2, isPsu2, insurerCode2);
+                            if (best2 != null && best2.Item2 != null)
+                            {
+                                tariffBase64   = Convert.ToBase64String(best2.Item2);
+                                tariffFileName = best2.Item1;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Prod: use S3/DMS — same logic as GetTariffDocument prod path
+                        // For now log and skip — tariff is optional
+                        System.Diagnostics.Debug.WriteLine("[GetDocumentsForStaging] Prod tariff fetch not implemented — skipping");
                     }
                 }
                 catch (Exception tariffEx)
