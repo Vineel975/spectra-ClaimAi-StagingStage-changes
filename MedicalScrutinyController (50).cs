@@ -9554,6 +9554,8 @@ namespace Enrollment.Controllers
         /// so the staging server does not need a user session.
         /// </summary>
         [HttpGet]
+        [AllowAnonymous]
+        [OverrideAuthorization]
         public ActionResult GetDocumentsForStaging(string claimId = null, string slNo = null)
         {
             try
