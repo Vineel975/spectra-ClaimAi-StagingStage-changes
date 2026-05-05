@@ -1,3 +1,1 @@
-There is no argument given that corresponds to the required parameter 'isPsu' of 'MedicalScrutinyController.PickBestTariffFile(List<Tuple<string, DateTime, byte[]>>, bool, string)'
-
-                    var tariffResult = PickBestTariffFile(cId);
+[Worker] Failed for claimId=26041586013 slNo=1: invalid json response body at http://localhost:50052/Account/MCareLogin?ReturnUrl=%2fMedicalScrutiny%2fGetDocumentsForStaging%3fclaimId%3d26041586013%26slNo%3d1&claimId=26041586013&slNo=1 reason: Unexpected token '', "
